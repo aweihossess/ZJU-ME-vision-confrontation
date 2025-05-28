@@ -153,19 +153,24 @@ class YoloProcessor:
         mid_screen_x = 320
 
         for box, score, cl in zip(boxes, scores, classes):
-            top, left, right, bottom = box
-            top = int(top)
-            bottom = int(bottom * 480 / 640)
-            left = int(left * 480 / 640)
-            right = int(right)
+            x1, y1, x2, y2 = box
+            x1 = int(x1)  # 左边界x坐标
+            y2 = int(y2 * 480 / 640)  # 下边界y坐标
+            y1 = int(y1 * 480 / 640)  # 上边界y坐标
+            x2 = int(x2)  # 右边界x坐标
 
-            center = (int((right + top) // 2), int((bottom + left) // 2))
-            boundary = (top, left, right, bottom)
+            # 计算中心点
+            center = (int((x1 + x2) // 2), int((y1 + y2) // 2))
+            boundary = (x1, y1, x2, y2)
+            
+            # 计算目标宽度
+            width = x2 - x1  # 正确的宽度计算
 
             name = self.classes[cl]
             offset_x = center[0] - mid_screen_x
 
-            detections.append((name, score, center, offset_x))
+            # 在detections中添加宽度信息
+            detections.append((name, score, center, offset_x, width))
             draw_info_list.append((name, score, boundary, center))
 
         return detections, draw_info_list
@@ -174,16 +179,16 @@ class YoloProcessor:
         image = cv2.resize(image, (640, 480))
 
         for name, score, boundary, center in draw_info_list:
-            top, left, right, bottom = boundary
+            x1, y1, x2, y2 = boundary
 
-            cv2.rectangle(image, (top, left), (int(right), int(bottom)), (255, 0, 0), 2)
+            cv2.rectangle(image, (x1, y1), (int(x2), int(y2)), (255, 0, 0), 2)
             cv2.putText(image, '{0} {1:.2f}'.format(name, score),
-                        (top, left - 6),
+                        (x1, y1 - 6),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.6, (0, 0, 255), 2)
             cv2.circle(image, center, 4, (0, 255, 0), 4)
-            cv2.circle(image, (int(right), int(bottom)), 4, (255, 0, 0), 4)
-            cv2.circle(image, (top, left), 4, (255, 0, 0), 4)
+            cv2.circle(image, (int(x2), int(y2)), 4, (255, 0, 0), 4)
+            cv2.circle(image, (x1, y1), 4, (255, 0, 0), 4)
 
         return image
 

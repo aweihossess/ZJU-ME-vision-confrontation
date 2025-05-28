@@ -269,7 +269,7 @@ class UpAPI:
         """
         检测 Apriltag
 
-        :return: 是否找到 Apriltag，Apriltag 的 ID，水平方向偏移量，宽度像素值，高度像素值
+        :return: 是否找到 Apriltag，Apriltag 的 ID，水平方向偏移量
         """
         frame = self.get_camera_frame()
 
@@ -286,7 +286,7 @@ class UpAPI:
 
         :param label: 目标人脸标签
         :param sim_threshold: 目标人脸相似度
-        :return: 是否找到人脸，人脸相对于屏幕中心水平偏移量
+        :return: 是否找到人脸，人脸相对于屏幕中心水平偏移量，人脸宽度
         """
         frame = self.get_camera_frame()
 
@@ -297,29 +297,31 @@ class UpAPI:
         cv2.imshow(self.__window_name_face, image)
         cv2.waitKey(1)
 
-        for name, score, center, offset_x in detections:
+        for detection in detections:
+            name, score, center, offset_x = detection[:4]
+            width = detection[4] if len(detection) > 4 else None
             if name == label:
-                return True, offset_x
+                return True, offset_x, width
 
-        return False, None
+        return False, None, None
 
     def detect_yolo(self, label="tank"):
         """
         Yolo 检测
 
         :param label: 目标标签
-        :return: 是否找到目标，目标相对于屏幕中心水平偏移量
+        :return: 是否找到目标，目标相对于屏幕中心水平偏移量，目标宽度
         """
         frame = self.get_camera_frame()
 
         yolo_detector = self.__processor.get_yolo_detector()
         detections = yolo_detector.process_frame(frame)
 
-        for name, score, center, offset_x in detections:
+        for name, score, center, offset_x, width in detections:
             if name == label:
-                return True, offset_x
+                return True, offset_x, width
 
-        return False, None
+        return False, None, None
 
     def detect_gesture(self):
         """
