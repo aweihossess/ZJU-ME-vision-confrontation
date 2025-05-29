@@ -143,11 +143,14 @@ class FaceDetector:
 
             # Calculate the offset
             offset_x = center_x - mid_screen_x
+            
+            # Calculate the width of the bounding box
+            width = box[2] - box[0]
 
             if similarity >= sim_threshold:
-                detected_faces.append((name, box, center, offset_x))
+                detected_faces.append((name, box, center, offset_x, width))
             else:
-                detected_faces.append(("Unknown", box, center, offset_x))
+                detected_faces.append(("Unknown", box, center, offset_x, width))
 
         return detected_faces
 
@@ -156,7 +159,7 @@ class FaceDetector:
         Draw bounding boxes around the detected faces and save or return the image.
         """
 
-        for name, box, center, offset_x in detections:
+        for name, box, center, offset_x, width in detections:
             box = list(map(int, box))  # Ensure the coordinates are integers
             if name == "Unknown":
                 color = (0, 0, 255)  # Red for unknown faces

@@ -2,71 +2,56 @@ import time
 from sdk.api import UpAPI
 import math
 
+k_back_error_correction = 0.8
 
 class RobotBody:
     def __init__(self, api):
         """初始化机器人控制接口"""
         self.api = api
         # 机器人的运动参数
-        self.default_speed = 50  # 默认速度
-        self.default_turn_rate = 200  # 默认旋转速率
-        # 机器人的物理参数（需要根据实际情况调整）
-        self.wheel_radius = 0.05  # 轮子半径（米）
-        self.robot_speed_factor = 0.005  # 速度转换因子（speed=50时每秒移动的米数）
+        self.default_speed = 100 # 默认就是最大移动速度
+        self.default_turn_rate = 400 # 默认即最大旋转速率
+        self.speed_factor = 0.5  # 速度转换因子（speed=100时每秒移动的米数）
+        self.turn_rate_factor = 0.5  # 旋转速率转换因子（turn_rate=100时每秒旋转的度数）
 
-        self.max_move_speed = 100 # 最大移动速度
-        self.max_rotation_speed = 100 # 最大旋转速度
         # TBD: 待测试给出准确值
-        self.rotation_90_time = 1800 # 90度旋转时间
-        self.extra_sleep_delay = 0.5  # 移动/旋转后额外休眠时间（秒），确保移动/旋转完全完成
+        self.rotation_90_time = 450 # 90度旋转时间
+        self.rotation_180_time = 900 # 180度旋转时间
+        self.extra_sleep_delay = 0.1  # 移动/旋转后额外休眠时间（秒），确保移动/旋转完全完成
+        self.k_vehicle_horizontal = 1.56  # 140mm对应着90个像素，所以1个像素对应1.56mm
+        self.k_vehicle_vertical = 0.5 # 由distance = self.k_vertical * (1 - ratio_w)反推计算得到
+        self.k_face_horizontal = 1.2
+        self.k_face_vertical = 0.4 # 由distance = self.k_vertical * (1 - ratio_w)反推计算得到
         
         # 目标瞄准参数
-        self.target_center_offset = 35  # 目标中心与屏幕中心偏移量，单位像素
-        self.target_width_tolerance = 20  # 目标宽度容差，单位像素
+        self.target_x_offset_tolerance = 35  # 目标中心与屏幕中心偏移量，单位像素 TBD
+        self.target_width_tolerance = 0.05  # 目标宽度容差
     
-    def move_forward(self, move_time):
+    def move_forward(self, distance):
         """
         使机器人向前移动
         
-        :param move_time: 移动时间（毫秒）
+        :param distance: 移动距离（米）
         """
-        self.api.move_forward(speed=self.max_move_speed, run_time=move_time)
-        time.sleep(move_time / 1000 + self.extra_sleep_delay)
+        # 计算移动目标距离所需的时间（毫秒）
+        run_time = int((distance / self.speed_factor) * 1000)
+        
+        self.api.move_forward(speed=self.default_speed, run_time=run_time)
+        time.sleep(run_time / 1000 + self.extra_sleep_delay)
         self.api.stop()
     
-    def move_backward(self, move_time):
+    def move_backward(self, distance):
         """
         使机器人向后移动
         
-        :param move_time: 移动时间（毫秒）
+        :param distance: 移动距离（米）
         """
-        self.api.move_backward(speed=self.max_move_speed, run_time=move_time)
-        time.sleep(move_time / 1000 + self.extra_sleep_delay)
-        self.api.stop()
-
-    def move_left_forward(self):
-        """
-        使机器人往左前方angle度方向直线移动
+        distance = distance * k_back_error_correction
+        # 计算移动目标距离所需的时间（毫秒）
+        run_time = int((distance / self.speed_factor) * 1000)
         
-        :param angle: 移动角度（度）
-        :return: 无
-        """
-        angle = 45 # TBD
-        move_time = 2300 # TBD
-        self.api.move_translation(angle=angle, speed=self.max_move_speed, run_time=move_time)
-        time.sleep(move_time / 1000 + self.extra_sleep_delay)
-
-    def move_right_forward(self):
-        """
-        使机器人往右前方angle度方向直线移动
-        
-        :param angle: 移动角度（度）
-        :return: 无
-        """
-        angle = -45 # TBD
-        move_time = 2300 # TBD
-        self.api.move_translation(angle=angle, speed=self.max_move_speed, run_time=move_time)
-        time.sleep(move_time / 1000 + self.extra_sleep_delay)
+        self.api.move_backward(speed=self.default_speed, run_time=run_time)
+        time.sleep(run_time / 1000 + self.extra_sleep_delay)
         self.api.stop()
 
     def rotate_90_degrees(self, direction="left"):
@@ -76,9 +61,9 @@ class RobotBody:
         :param direction: 旋转方向，"left"为左转，"right"为右转
         """
         if direction == "left":
-            self.api.spin_left(self.max_rotation_speed, self.rotation_90_time)
+            self.api.spin_left(turn_rate=self.default_turn_rate, run_time=self.rotation_90_time)
         elif direction == "right":
-            self.api.spin_right(self.max_rotation_speed, self.rotation_90_time)
+            self.api.spin_right(turn_rate=self.default_turn_rate, run_time=self.rotation_90_time)
         else:
             print("无效的旋转方向，请指定'left'或'right'")
             return
@@ -89,16 +74,17 @@ class RobotBody:
         """
         使机器人左转180度
         """
-        self.api.spin_left(self.max_rotation_speed, self.rotation_90_time * 2)
-        time.sleep(self.rotation_90_time * 2 / 1000 + self.extra_sleep_delay)
+        self.api.spin_left(turn_rate=self.default_turn_rate, run_time=self.rotation_180_time)
+        time.sleep(self.rotation_180_time / 1000 + self.extra_sleep_delay)
 
     def navigate_to_position_april_tag(self):
         """导航到April Tag识别位置"""
         print("导航到April Tag识别位置")
         # 往左前方直接移动到april tag
-
-        self.move_left_forward()
+        distance = 0.6
+        self.move_forward(distance)
         self.rotate_90_degrees("left")
+        self.move_forward(distance)
         print("到达 April Tag 识别十字")
 
     def navigate_to_position_gesture(self):
@@ -106,8 +92,8 @@ class RobotBody:
         print("导航到手势识别位置")
         # 往后转，再移动到手掌位置
         self.rotate_left_180_degrees()
-        move_time = 1000 # TBD
-        self.move_forward(move_time)
+        distance = 1.2  # 移动1.2米，即0.6*2
+        self.move_forward(distance)
         print("到达手势识别十字")
 
     def navigate_to_position_vehicle(self):
@@ -115,7 +101,11 @@ class RobotBody:
         print("导航到vehicle识别位置")
         # 往后转，再向右前方移动到车辆位置
         self.rotate_left_180_degrees()
-        self.move_right_forward()
+        distance = 0.55
+        self.move_forward(distance)
+        self.move_distance("right", distance)
+        # distance = 0.75  # 移动0.84米，还是0.6*sqrt(2)
+        # self.move_right_forward(distance)
         print("到达 vehicle 识别")
 
     def navigate_to_position_face(self):
@@ -123,16 +113,16 @@ class RobotBody:
         print("导航到人脸识别位置")
         # 往右转，再向前方移动到人脸位置
         self.rotate_90_degrees("right")
-        move_time = 1000 # TBD
-        self.move_forward(move_time)
+        distance = 0.6
+        self.move_forward(distance)
         print("到达人脸识别十字")
 
     def navigate_to_position_home(self):
         """导航到回家位置"""
         print("导航到回家位置")
         # 往后一直倒退，回到初始位置
-        move_time = 1000 # TBD
-        self.move_backward(move_time)
+        distance = 1.9  # 移动1.8米，即0.6*3
+        self.move_backward(distance)
         print("准备回家")
 
 
@@ -144,8 +134,8 @@ class RobotBody:
         :param distance: 移动距离（米）
         """
         # 计算移动所需的时间（毫秒）
-        speed = self.max_move_speed
-        move_time = int((distance / (speed * self.robot_speed_factor)) * 1000)
+        speed = self.default_speed
+        move_time = int((distance / self.speed_factor) * 1000)
         
         print(f"向{direction}方向移动{distance}米")
         
@@ -153,6 +143,7 @@ class RobotBody:
         if direction == "forward":
             self.api.move_forward(speed=speed, run_time=move_time)
         elif direction == "backward":
+            move_time = move_time * k_back_error_correction
             self.api.move_backward(speed=speed, run_time=move_time)
         elif direction == "left":
             self.api.move_left(speed=speed, run_time=move_time)
@@ -166,69 +157,65 @@ class RobotBody:
             return
         
         # 等待移动完成
-        time.sleep(move_time / 1000)
+        time.sleep(move_time / 1000 + self.extra_sleep_delay)
+        self.api.stop()
         print(f"移动完成，已行进{distance}米")
         
-    def adjust_position(self, offset_x, offset_width):
+    def adjust_position(self, offset_x, ratio_w, target_type):
         """
         瞄准目标，返回是否瞄准成功
         
-        :param offset_x: 目标横向偏移（像素）
-        :param offset_width: 目标宽度偏移（当前宽度 - 期望宽度，像素）
-        :return: 是否瞄准成功
+        :param offset_x: 目标横向偏移（像素），正值表示目标在右侧，负值表示目标在左侧
+        :param ratio_w: 目标宽度比例（当前宽度 / 期望宽度）
+        :return: 是否调整成功
         """
-        if offset_x is None:
-            print("没有发现目标")
-            self.api.stop()
-            return False
+        k_horizontal = self.k_vehicle_horizontal if target_type == "vehicle" else self.k_face_horizontal
+        k_vertical = self.k_vehicle_vertical if target_type == "vehicle" else self.k_face_vertical
+        print("*"*50)
+        print(f"调整位置: offset_x={offset_x}, ratio_w={ratio_w}")
+        adjusted = False
+        
+        # 横向位置调整 - 根据公式：distance_x = kx · (x - x0) = kx · offset_x
+        if abs(offset_x) >= self.target_x_offset_tolerance:
+            # 计算横向移动距离（米），与横向偏移像素成正比
+            distance = k_horizontal * offset_x / 1000  # 转换为米
+            distance = min(max(abs(distance), 0.02), 0.25)  # 限制最小和最大距离
+            print(f"horizontal distance={distance}")
             
-        # 横向位置调整
-        horizontal_aligned = False
-        if abs(offset_x) >= self.target_center_offset:
-            # 计算横向移动距离（米），与偏移量成正比
-            # 限制最小和最大距离
-            distance = min(max(abs(offset_x) / 500, 0.02), 0.1)  # 将像素偏移转换为米
-            
+            # 当目标在右侧(offset_x > 0)，需要向左移动(distance < 0)
             if offset_x > 0:
                 # 目标在右侧，需要向右移动
                 self.move_distance("right", distance)
                 print(f"向右调整，偏移量: {offset_x}，距离: {distance:.3f}米")
             else:
                 # 目标在左侧，需要向左移动
-                self.move_distance("left", distance)
-                print(f"向左调整，偏移量: {offset_x}，距离: {distance:.3f}米")
+                self.move_distance("left", abs(distance))
+                print(f"向左调整，偏移量: {offset_x}，距离: {abs(distance):.3f}米")
+            adjusted = True
         else:
-            horizontal_aligned = True
+            print(f"横向位置已对准 (偏移: {offset_x})")
             
-        # 纵向位置调整
-        depth_aligned = False
-        if offset_width is not None:
-            if abs(offset_width) > self.target_width_tolerance:
-                # 计算纵向移动距离（米），与宽度差值成正比
-                # 限制最小和最大距离
-                distance = min(max(abs(offset_width) / 400, 0.02), 0.1)  # 将像素差值转换为米
-                
-                if offset_width < 0:
-                    # 目标太小，需要前进
-                    self.move_distance("forward", distance)
-                    print(f"目标太远，前进调整 (宽度偏移: {offset_width}，距离: {distance:.3f}米)")
-                else:
-                    # 目标太大，需要后退
-                    self.move_distance("backward", distance)
-                    print(f"目标太近，后退调整 (宽度偏移: {offset_width}，距离: {distance:.3f}米)")
+        # 纵向位置调整 - 根据公式：distance_y = ky · (1 - w/w0) = (1 - ratio_w)
+        if abs(ratio_w - 1) > self.target_width_tolerance:
+            # 计算纵向移动距离（米），与纵向宽度比例成反比
+            distance = k_vertical * (1 - ratio_w)
+            print(f"vertical distance={distance}")
+            distance = min(max(abs(distance), 0.02), 0.2)  # 限制最小和最大距离
+            
+            # 当 ratio_w < 1 (目标较小)，distance > 0，需要前进
+            if ratio_w < 1:
+                self.move_distance("forward", abs(distance))
+                print(f"目标太远，前进调整 (宽度比例: {ratio_w}，距离: {abs(distance):.3f}米)")
             else:
-                depth_aligned = True
-                print(f"目标距离合适 (宽度偏移: {offset_width})")
+                # 当 ratio_w > 1 (目标较大)，distance < 0，需要后退
+                self.move_distance("backward", abs(distance))
+                print(f"目标太近，后退调整 (宽度比例: {ratio_w}，距离: {abs(distance):.3f}米)")
+            adjusted = True
         else:
-            # 如果没有宽度信息，则只考虑横向对齐
-            depth_aligned = True
+            print(f"纵向位置已对准 (宽度比例: {ratio_w})")
+        print("*"*50)
             
-        # 如果横向和纵向都对齐，则停止移动并返回成功
-        if horizontal_aligned and depth_aligned:
-            self.api.stop()
-            return True
-            
-        return False
+        return adjusted
 
 
 # 测试代码
@@ -237,7 +224,6 @@ if __name__ == "__main__":
         api = UpAPI()
         robot = RobotBody(api)
         
-        # 测试旋转90度
         print("navigate_to_position_april_tag")
         robot.navigate_to_position_april_tag()
         print("navigate_to_position_gesture")
@@ -248,18 +234,6 @@ if __name__ == "__main__":
         robot.navigate_to_position_face()
         print("navigate_to_position_home")
         robot.navigate_to_position_home()
-        
-        # # 测试移动指定距离
-        # print("\n测试移动功能...")
-        # robot.move_distance("forward", 0.5)  # 向前移动0.5米
-        # time.sleep(1)
-        # robot.move_distance("backward", 0.5)  # 向后移动0.5米
-        # time.sleep(1)
-        # robot.move_distance("left", 0.3)  # 向左移动0.3米
-        # time.sleep(1)
-        # robot.move_distance("right", 0.3)  # 向右移动0.3米
-        # time.sleep(1)
-        # robot.move_distance(45, 0.4)  # 向45度方向移动0.4米
         
         print("测试完成!")
         

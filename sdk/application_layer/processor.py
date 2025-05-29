@@ -9,6 +9,7 @@ from ..logic_layer.gesture_detector import GestureDetector
 class Processor(NoticeBase):
     def __init__(self, yolo_model):
         super().__init__()
+        self.yolo_model_enum = yolo_model
 
         self.__line_follower = SingleLineFollower()  # 巡线
         self.__apriltag_detector = ApriltagDetector()  # Apriltag 检测

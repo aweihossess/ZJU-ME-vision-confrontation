@@ -1,6 +1,6 @@
 import cv2
 import sys
-
+import time
 from .rknn_func_yolo.rknn_pool import RKNNPoolExecutor
 from .rknn_func_yolo.yolo_processor import YoloProcessor
 
@@ -19,7 +19,7 @@ class YoloDetector:
         yolo_processor = YoloProcessor(yolo_model)
 
         # 线程数, 增大可提高帧率
-        self.worker_number = 4
+        self.worker_number = 5
         # 初始化 RKNN 池
         self.pool = RKNNPoolExecutor(
             rknn_model=model_path, worker_number=self.worker_number, func=yolo_processor.process)
@@ -39,6 +39,7 @@ class YoloDetector:
     def process_frame(self, frame):
         self.fill_pool(frame)
         (frame, detections), flag = self.pool.get()
+        print("flag:", flag)
         result = frame.copy()
 
         cv2.imshow(self.window_name, result)

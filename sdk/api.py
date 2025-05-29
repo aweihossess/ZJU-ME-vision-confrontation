@@ -65,7 +65,7 @@ class UpAPI:
         :param speed: 移动速度  0~100
         :param run_time: 执行时间
         """
-        self.__action.move_translation(-5, speed, run_time=run_time)
+        self.__action.move_translation(0, speed, run_time=run_time)
 
     def move_backward(self, speed=50, run_time=50):
         """
@@ -74,7 +74,7 @@ class UpAPI:
         :param speed: 移动速度  0~100
         :param run_time: 执行时间
         """
-        self.__action.move_translation(180, speed, run_time=run_time)
+        self.__action.move_translation(185, speed, run_time=run_time)
 
     def move_left(self, speed=50, run_time=50):
         """
@@ -298,8 +298,7 @@ class UpAPI:
         cv2.waitKey(1)
 
         for detection in detections:
-            name, score, center, offset_x = detection[:4]
-            width = detection[4] if len(detection) > 4 else None
+            name, score, center, offset_x, width = detection
             if name == label:
                 return True, offset_x, width
 
