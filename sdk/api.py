@@ -74,7 +74,7 @@ class UpAPI:
         :param speed: 移动速度  0~100
         :param run_time: 执行时间
         """
-        self.__action.move_translation(185, speed, run_time=run_time)
+        self.__action.move_translation(180, speed, run_time=run_time)
 
     def move_left(self, speed=50, run_time=50):
         """

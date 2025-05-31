@@ -22,7 +22,13 @@ class RobotBody:
         self.k_vehicle_vertical = 0.5 # 由distance = self.k_vertical * (1 - ratio_w)反推计算得到
         self.k_face_horizontal = 1.2
         self.k_face_vertical = 0.4 # 由distance = self.k_vertical * (1 - ratio_w)反推计算得到
+
         
+        self.k_horizontal_vehicle_camera_error_right = 0.6 # 识别车辆时，摄像头横向右移误差修正系数
+        self.k_horizontal_vehicle_camera_error_left = 1.2  # 识别车辆时，摄像头横向左移误差修正系数
+        self.k_horizontal_face_camera_error_right = 0.6  # 识别人脸时，摄像头横向右移误差修正系数
+        self.k_horizontal_face_camera_error_left = 1.2  # 识别人脸时，摄像头横向左移误差修正系数
+
         # 目标瞄准参数
         self.target_x_offset_tolerance = 35  # 目标中心与屏幕中心偏移量，单位像素 TBD
         self.target_width_tolerance = 0.05  # 目标宽度容差
@@ -171,6 +177,12 @@ class RobotBody:
         """
         k_horizontal = self.k_vehicle_horizontal if target_type == "vehicle" else self.k_face_horizontal
         k_vertical = self.k_vehicle_vertical if target_type == "vehicle" else self.k_face_vertical
+        k_horizontal_face_camera_error_right = self.k_horizontal_face_camera_error_right
+        k_horizontal_face_camera_error_left = self.k_horizontal_face_camera_error_left
+
+        k_horizontal_vehicle_camera_error_right = self.k_horizontal_vehicle_camera_error_right
+        k_horizontal_vehicle_camera_error_left = self.k_horizontal_vehicle_camera_error_left
+        print("开始调整位置")
         print("*"*50)
         print(f"调整位置: offset_x={offset_x}, ratio_w={ratio_w}")
         adjusted = False
@@ -185,10 +197,18 @@ class RobotBody:
             # 当目标在右侧(offset_x > 0)，需要向左移动(distance < 0)
             if offset_x > 0:
                 # 目标在右侧，需要向右移动
+                if target_type == "vehicle":
+                    distance = distance * k_horizontal_vehicle_camera_error_right
+                else: 
+                    distance = distance * k_horizontal_face_camera_error_right
                 self.move_distance("right", distance)
                 print(f"向右调整，偏移量: {offset_x}，距离: {distance:.3f}米")
             else:
                 # 目标在左侧，需要向左移动
+                if target_type == "vehicle":
+                    distance = distance * k_horizontal_vehicle_camera_error_left
+                else:
+                    distance = distance * k_horizontal_face_camera_error_left
                 self.move_distance("left", abs(distance))
                 print(f"向左调整，偏移量: {offset_x}，距离: {abs(distance):.3f}米")
             adjusted = True

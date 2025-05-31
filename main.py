@@ -73,7 +73,7 @@ class Controller:
         self.__adjust_and_act_vehicle(offset_x, ratio_w)
         self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="vehicle")
         
-        # 5. 人脸识别流程
+        # # 5. 人脸识别流程
         self.robot_body.navigate_to_position_face()
         offset_x, ratio_w = self.__recognize_face_target()
         self.__adjust_and_act_face(offset_x, ratio_w)
