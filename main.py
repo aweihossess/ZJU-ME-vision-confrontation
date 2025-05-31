@@ -30,7 +30,7 @@ class Controller:
         # YOLO 目标参数
         self.yolo_model = YoloModel.VEHICLE
 
-        # 手臂动作
+        # 手臂动作的对应关系映射
         self.left_arm_actions = {
             "clamp": arm_action.left_arm_clamp(),
             "up": arm_action.left_arm_raise()
