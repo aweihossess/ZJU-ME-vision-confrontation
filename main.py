@@ -17,7 +17,7 @@ TARGET_NUMBER_BOTH = 5  # 手势识别数字，举右手
 
 class Controller:
     def __init__(self):
-        # 参数设
+        # 参数设置初始化
         
         self.grayscale_threshold = 1600  # 灰度传感器检测阈值
 
