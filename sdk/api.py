@@ -325,15 +325,18 @@ class UpAPI:
     def detect_gesture(self):
         """
         手势识别
-
+        拳头举右手 
+        手掌举双手 
         :return: 是否找到手势，手势摆出的数字
-        """
+        """ 
         frame = self.get_camera_frame()
 
+        number = None
         gesture_detector = self.__processor.get_gesture_detector()
         number = gesture_detector.process(frame)
 
-        if number:
+        if number == 5 or number == 0:
+            # 5 或 0 手势
             return True, number
         return False, None
 

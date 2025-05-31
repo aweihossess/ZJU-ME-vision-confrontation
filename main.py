@@ -62,7 +62,8 @@ class Controller:
         # 2. April Tag识别流程
         self.robot_body.navigate_to_position_april_tag()
         self.__recognize_and_act_apriltag()
-        
+
+
         # 3. 手势识别流程
         self.robot_body.navigate_to_position_gesture()
         self.__recognize_and_act_gesture()
@@ -124,6 +125,7 @@ class Controller:
         
         # 等待相机稳定
         self.__wait_camera_stable()
+        detect_gesture_true = False
         
         # 开始识别并执行动作
         self.timer_arm_action.start()
@@ -135,8 +137,12 @@ class Controller:
                 print(f"找到手势动作：{number}")
                 self.__do_arm_action(number)
                 time.sleep(1)
+                detect_gesture_true = True
                 break
             time.sleep(self.arm_action_delay)  # 小延时避免CPU占用过高
+        
+        if not detect_gesture_true:
+            print("未识别到手势动作")
         
         print("手势动作完成")
         self.__clamp_arms()
@@ -265,7 +271,7 @@ class Controller:
             self.api.execute_arm_action(left_action, right_action)
 
         elif number == TARGET_NUMBER_RIGHT:
-            # 举右手
+            # 举右手  
             left_action = self.left_arm_actions["clamp"]
             right_action = self.right_arm_actions["up"]
             self.api.execute_arm_action(left_action, right_action)

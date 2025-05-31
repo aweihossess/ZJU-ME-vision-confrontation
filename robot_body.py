@@ -91,7 +91,7 @@ class RobotBody:
         self.move_forward(distance)
         self.rotate_90_degrees("left")
         self.move_forward(distance)
-        print("到达 April Tag 识别十字")
+        print("到达 April Tag 开始识别十字")
 
     def navigate_to_position_gesture(self):
         """导航到手势识别位置"""
@@ -100,7 +100,7 @@ class RobotBody:
         self.rotate_left_180_degrees()
         distance = 1.2  # 移动1.2米，即0.6*2
         self.move_forward(distance)
-        print("到达手势识别十字")
+        print("到达手势识别位置 开始识别手势")
 
     def navigate_to_position_vehicle(self):
         """导航到vehicle识别位置"""
@@ -127,7 +127,7 @@ class RobotBody:
         """导航到回家位置"""
         print("导航到回家位置")
         # 往后一直倒退，回到初始位置
-        distance = 1.9  # 移动1.8米，即0.6*3
+        distance = 2  # 移动1.8米，即0.6*3
         self.move_backward(distance)
         print("准备回家")
 
