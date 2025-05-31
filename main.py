@@ -14,9 +14,11 @@ TARGET_ID = 1  # April Tag 识别 ID  （实际是 1 号）
 TARGET_NUMBER_RIGHT = 0  # 手势识别数字，举右手
 TARGET_NUMBER_BOTH = 5  # 手势识别数字，举右手
 
+
 class Controller:
     def __init__(self):
-        # 参数设置
+        # 参数设
+        
         self.grayscale_threshold = 1600  # 灰度传感器检测阈值
 
         self.time_init = 1000  # 初始化时间，单位毫秒
