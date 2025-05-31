@@ -56,3 +56,7 @@ class YoloDetector:
         # 关闭OpenCV窗口
         cv2.destroyAllWindows()
         self.pool.release()
+
+    def save_images(self, frame, filename):
+        cv2.imwrite(filename, frame)
+        print(f"Image saved as {filename}")

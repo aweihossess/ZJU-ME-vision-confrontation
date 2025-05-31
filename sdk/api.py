@@ -254,6 +254,16 @@ class UpAPI:
             cv2.imshow("camera", frame)
             cv2.waitKey(1)
 
+   
+    def save_yolo_images(self,filename):
+        """
+        保存 Yolo 检测图像
+        """
+        frame = self.get_camera_frame()
+        yolo_detector = self.__processor.get_yolo_detector()
+        yolo_detector.save_images(frame,filename)      
+
+
     def follow_line(self):
         """
         灰度巡线

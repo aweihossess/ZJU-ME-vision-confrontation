@@ -98,7 +98,7 @@ class RobotBody:
         print("导航到手势识别位置")
         # 往后转，再移动到手掌位置
         self.rotate_left_180_degrees()
-        distance = 1.2  # 移动1.2米，即0.6*2
+        distance = 1.12  # 移动1.2米，即0.6*2 旋转180°会产生误差，所以这里距离需要稍微小一点
         self.move_forward(distance)
         print("到达手势识别位置 开始识别手势")
 
@@ -107,7 +107,7 @@ class RobotBody:
         print("导航到vehicle识别位置")
         # 往后转，再向右前方移动到车辆位置
         self.rotate_left_180_degrees()
-        distance = 0.55
+        distance = 0.5
         self.move_forward(distance)
         self.move_distance("right", distance)
         # distance = 0.75  # 移动0.84米，还是0.6*sqrt(2)
@@ -127,7 +127,7 @@ class RobotBody:
         """导航到回家位置"""
         print("导航到回家位置")
         # 往后一直倒退，回到初始位置
-        distance = 2  # 移动1.8米，即0.6*3
+        distance = 1.9  # 移动1.8米，即0.6*3
         self.move_backward(distance)
         print("准备回家")
 
