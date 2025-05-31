@@ -177,11 +177,7 @@ class RobotBody:
         """
         k_horizontal = self.k_vehicle_horizontal if target_type == "vehicle" else self.k_face_horizontal
         k_vertical = self.k_vehicle_vertical if target_type == "vehicle" else self.k_face_vertical
-        k_horizontal_face_camera_error_right = self.k_horizontal_face_camera_error_right
-        k_horizontal_face_camera_error_left = self.k_horizontal_face_camera_error_left
 
-        k_horizontal_vehicle_camera_error_right = self.k_horizontal_vehicle_camera_error_right
-        k_horizontal_vehicle_camera_error_left = self.k_horizontal_vehicle_camera_error_left
         print("开始调整位置")
         print("*"*50)
         print(f"调整位置: offset_x={offset_x}, ratio_w={ratio_w}")
@@ -198,17 +194,17 @@ class RobotBody:
             if offset_x > 0:
                 # 目标在右侧，需要向右移动
                 if target_type == "vehicle":
-                    distance = distance * k_horizontal_vehicle_camera_error_right
+                    distance = distance * self.k_horizontal_vehicle_camera_error_right
                 else: 
-                    distance = distance * k_horizontal_face_camera_error_right
+                    distance = distance * self.k_horizontal_face_camera_error_right
                 self.move_distance("right", distance)
                 print(f"向右调整，偏移量: {offset_x}，距离: {distance:.3f}米")
             else:
                 # 目标在左侧，需要向左移动
                 if target_type == "vehicle":
-                    distance = distance * k_horizontal_vehicle_camera_error_left
+                    distance = distance * self.k_horizontal_vehicle_camera_error_left
                 else:
-                    distance = distance * k_horizontal_face_camera_error_left
+                    distance = distance * self.k_horizontal_face_camera_error_left
                 self.move_distance("left", abs(distance))
                 print(f"向左调整，偏移量: {offset_x}，距离: {abs(distance):.3f}米")
             adjusted = True
