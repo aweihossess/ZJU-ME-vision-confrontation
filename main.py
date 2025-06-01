@@ -24,6 +24,8 @@ class Controller:
         self.time_init = 1000  # 初始化时间，单位毫秒
         self.arm_action_duration = 2500  # 手臂做动作时间，单位毫秒 TBD
         self.arm_action_delay = 0.1  # 手臂做动作时间，单位秒
+        self.image_read_duration = 2500  # 等待读取图片和模型处理的时间，单位毫秒
+        self.image_read_interval = 0.1  # 等待读取图片和模型处理的时间，单位秒
         self.time_hit_position = 1000  # 进入退出击打状态的移动时间，单位毫秒 TBD
 
         self.target_width_vehicle = 160  # 车辆目标期望宽度，单位像素
@@ -49,9 +51,6 @@ class Controller:
         
         # 机器人身体控制
         self.robot_body = RobotBody(self.api)
-
-        # 计时器
-        self.timer_arm_action = TimeMeter(self.arm_action_duration)  # 手臂做动作
         
         # 相机稳定
         self.count_stable = 0  # 相机稳定计数器
@@ -102,19 +101,16 @@ class Controller:
         
         # 等待相机稳定
         self.__wait_camera_stable()
-        
-        # 开始识别并执行动作
-        self.timer_arm_action.start()
-        start_time = time.time()
-        
-        while time.time() - start_time < self.arm_action_duration / 1000:
+
+        start_time = time.time()        
+        while time.time() - start_time < self.image_read_duration / 1000:
             find_tag, tag_id, offset_x = self.api.detect_apriltag()
             if find_tag:
                 print(f"找到 April Tag 动作：{tag_id}")
                 self.__do_arm_action(tag_id)
                 time.sleep(1)
                 break
-            time.sleep(self.arm_action_delay)  # 小延时避免CPU占用过高
+            time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
         
         print("April Tag 动作完成")
         self.__clamp_arms()
@@ -129,13 +125,11 @@ class Controller:
         detect_gesture_true = False
         
         # 开始识别并执行动作
-        self.timer_arm_action.start()
         start_time = time.time()
         
         # 手势检测循坏调整参数
         action_duration_adjust = 0.8  # 手势动作检测持续时间，无量纲
-
-        while time.time() - start_time < self.arm_action_duration * action_duration_adjust/ 1000:
+        while time.time() - start_time < self.image_read_duration * action_duration_adjust / 1000:
             find_target, number = self.api.detect_gesture()
             if find_target:
                 print(f"找到手势动作：{number}")
@@ -144,7 +138,7 @@ class Controller:
                 detect_gesture_true = True
                 break
             print("未识别到手势动作，继续寻找")
-            time.sleep(self.arm_action_delay)  # 小延时避免CPU占用过高
+            time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
         
         if not detect_gesture_true:
             print("未识别到手势动作_大概率为拳头")
@@ -154,11 +148,6 @@ class Controller:
         self.__clamp_arms()
         self.api.close_gesture_window()
 
-    def __finish(self):
-        """完成所有任务"""
-        print("任务完成")
-        self.api.stop()
-
     def __recognize_vehicle_target(self):
         """识别车辆目标并返回偏移量"""
         print("vehicle 识别区域，预加载图像中")
@@ -166,26 +155,26 @@ class Controller:
         # 等待相机稳定
         self.__wait_camera_stable()
         
-        self.timer_arm_action.start()
         start_time = time.time()
+        k_read_time = 10
         
-        while time.time() - start_time < self.arm_action_duration / 1000:
+        while time.time() - start_time < self.image_read_duration * k_read_time / 1000:
             # 预加载YOLO图像
             preload_complete = self.api.preload_yolo_pool()
             if not preload_complete:
-                print("预加载图像失败")
-                time.sleep(self.arm_action_delay)  # 小延时避免CPU占用过高
+                print("预加载车辆读取图像失败")
+                time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
                 continue
             
             #将预加载的图像保存起来
-            self.api.save_yolo_images("yolo_detected_vehicle_image.jpg")
+            self.api.save_images("yolo_detected_vehicle_image.jpg")
             print("预加载车辆图像完成，准备识别目标")
 
             # 开始识别目标
             find_target, offset_x, width = self.api.detect_yolo(label=TARGET_VEHICLE)
             if not find_target:
                 print("未找到目标，继续寻找目标")
-                time.sleep(self.arm_action_delay)  # 小延时避免CPU占用过高
+                time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
                 continue
 
             print(f"找到 vehicle 目标：{TARGET_VEHICLE}")
@@ -218,20 +207,12 @@ class Controller:
         self.__wait_camera_stable()
         
         # 开始识别目标
-        self.timer_arm_action.start()
         start_time = time.time()
         
-        while time.time() - start_time < self.arm_action_duration / 1000:
-            # 预加载YOLO图像
-            preload_complete = self.api.preload_yolo_pool()
-            if not preload_complete:
-                print("预加载图像失败")
-                time.sleep(self.arm_action_delay)
-                continue
-
-            #将预加载的图像保存起来
-            self.api.save_yolo_images("yolo_detected_face_image.jpg")
-            print("预加载图像完成，准备识别目标")
+        while time.time() - start_time < self.image_read_duration / 1000:
+            # 先获取一次图像并保存
+            self.api.save_images("yolo_detected_face_image.jpg")
+            print("获取人脸图像完成，准备识别目标")
 
             find_target, offset_x, width = self.api.detect_face(label=TARGET_FACE)
             print(f"find_target={find_target}, offset_x={offset_x}, width={width}")
@@ -242,7 +223,8 @@ class Controller:
                 ratio_w = width / self.target_width_face
                 print(f"ratio_w={ratio_w}")
                 return offset_x, ratio_w
-            time.sleep(self.arm_action_delay)  # 小延时避免CPU占用过高
+            else:
+                time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
         
         print("未在时间内识别到人脸目标")
         return 0, 0  # 如果没有识别到目标，返回零偏移
@@ -323,6 +305,11 @@ class Controller:
         """重置YOLO资源"""
         self.api.close_yolo_window()
         self.api.reset_yolo_pool()
+
+    def __finish(self):
+        """完成所有任务"""
+        print("任务完成")
+        self.api.stop()
 
 
 if __name__ == '__main__':

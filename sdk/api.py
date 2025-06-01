@@ -254,15 +254,16 @@ class UpAPI:
             cv2.imshow("camera", frame)
             cv2.waitKey(1)
 
-   
-    def save_yolo_images(self,filename):
+    def save_images(self, frame, filename):
         """
-        保存 Yolo 检测图像
+        保存当前摄像头获取的图像
         """
         frame = self.get_camera_frame()
-        yolo_detector = self.__processor.get_yolo_detector()
-        yolo_detector.save_images(frame,filename)      
-
+        if frame is not None:
+            cv2.imwrite(filename, frame)
+            print(f"Image saved as {filename}")
+        else:
+            print("Fail to get image.")
 
     def follow_line(self):
         """
