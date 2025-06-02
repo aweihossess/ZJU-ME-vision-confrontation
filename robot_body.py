@@ -1,5 +1,8 @@
 import time
 from sdk.api import UpAPI
+from sdk.logic_layer.pid import PIDController
+from sdk.logic_layer.cross_planner import CrossLocator
+from sdk.logic_layer.navigation import follow_line_to_home
 import math
 
 k_back_error_correction = 0.8
@@ -149,6 +152,9 @@ class RobotBody:
         self.move_backward(distance)
         print("准备回家")
 
+    def follow_line_to_home(self):
+        """使用灰度传感器和十字检测导航回家"""
+        follow_line_to_home(self, target_cross_count=3)
 
     def move_distance(self, direction, distance):
         """

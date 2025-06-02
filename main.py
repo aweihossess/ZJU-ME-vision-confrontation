@@ -47,7 +47,7 @@ class Controller:
         }
 
         # 传感器和执行器
-        self.api = UpAPI(yolo_model=self.yolo_model)
+        self.api = UpAPI(yolo_model=self.yolo_model, grayscale_threshold=self.grayscale_threshold)
         
         # 机器人身体控制
         self.robot_body = RobotBody(self.api)
@@ -81,7 +81,11 @@ class Controller:
         self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="face", move_type="leave")
         
         # 6. 回家
+        print("开始回家...")
+        # 使用开环控制回家(默认方式)
         self.robot_body.navigate_to_position_home()
+        # 使用灰度传感器和十字检测回家(推荐方式)
+        # self.robot_body.follow_line_to_home()
         
         # 7. 完成
         self.__finish()
