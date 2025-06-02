@@ -3,6 +3,7 @@ from .application_layer.sensor import Sensor
 from .application_layer.processor import Processor
 from .data_layer.arm import arm_action_factory as data_arm
 from .model import YoloModel
+from .utils.image_util import adjust_brightness, auto_contrast
 import cv2
 
 
@@ -234,14 +235,24 @@ class UpAPI:
 
     def get_camera_frame(self):
         """
-        从帧图像队列获取相机数据
+        从帧图像队列获取相机数据，并可选择进行自适应亮度调整
 
         :return: 相机图像数据
         """
         ret, frame = self.__sensor.get_camera().read()
-        if ret:
-            return frame
-        raise RuntimeError("Failed to read camera frame")
+        if not ret or frame is None:
+            raise RuntimeError("Failed to read camera frame")
+
+        # 先进行亮度调整，可以根据实际情况选择是否开启
+        auto_adjust_brightness = True
+        if auto_adjust_brightness:
+            frame = adjust_brightness(frame)
+
+        # 再进行对比度增强，可以根据实际情况选择是否开启
+        auto_adjust_contrast = True
+        if auto_adjust_contrast:
+            frame = auto_contrast(frame)
+        return frame
 
     # ------------------------------ 视觉处理数据 ------------------------------
 
