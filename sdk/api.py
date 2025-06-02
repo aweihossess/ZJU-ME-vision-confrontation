@@ -254,7 +254,7 @@ class UpAPI:
             cv2.imshow("camera", frame)
             cv2.waitKey(1)
 
-    def save_images(self, frame, filename):
+    def save_images(self, filename):
         """
         保存当前摄像头获取的图像
         """

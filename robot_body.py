@@ -25,7 +25,7 @@ class RobotBody:
 
         
         self.k_horizontal_vehicle_camera_error_right = 0.6 # 识别车辆时，摄像头横向右移误差修正系数
-        self.k_horizontal_vehicle_camera_error_left = 1.2  # 识别车辆时，摄像头横向左移误差修正系数
+        self.k_horizontal_vehicle_camera_error_left = 1.0  # 识别车辆时，摄像头横向左移误差修正系数
         self.k_horizontal_face_camera_error_right = 0.6  # 识别人脸时，摄像头横向右移误差修正系数
         self.k_horizontal_face_camera_error_left = 1.2  # 识别人脸时，摄像头横向左移误差修正系数
 

@@ -47,7 +47,7 @@ class Controller:
         }
 
         # 传感器和执行器
-        self.api = UpAPI(yolo_model=self.yolo_model, grayscale_threshold=self.grayscale_threshold)
+        self.api = UpAPI(yolo_model=self.yolo_model)
         
         # 机器人身体控制
         self.robot_body = RobotBody(self.api)
@@ -142,7 +142,8 @@ class Controller:
         
         if not detect_gesture_true:
             print("未识别到手势动作_大概率为拳头")
-            self.__do_arm_action(0)
+            self.__do_arm_action(TARGET_NUMBER_RIGHT)
+            time.sleep(1)
         
         print("手势动作完成")
         self.__clamp_arms()
@@ -156,7 +157,7 @@ class Controller:
         self.__wait_camera_stable()
         
         start_time = time.time()
-        k_read_time = 10
+        k_read_time = 20
         
         while time.time() - start_time < self.image_read_duration * k_read_time / 1000:
             # 预加载YOLO图像
