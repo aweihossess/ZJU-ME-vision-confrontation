@@ -18,20 +18,38 @@ class RobotBody:
         self.rotation_90_time = 450 # 90度旋转时间
         self.rotation_180_time = 900 # 180度旋转时间
         self.extra_sleep_delay = 0.1  # 移动/旋转后额外休眠时间（秒），确保移动/旋转完全完成
-        self.k_vehicle_horizontal = 1.56  # 140mm对应着90个像素，所以1个像素对应1.56mm
-        self.k_vehicle_vertical = 0.5 # 由distance = self.k_vertical * (1 - ratio_w)反推计算得到
-        self.k_face_horizontal = 1.2
-        self.k_face_vertical = 0.4 # 由distance = self.k_vertical * (1 - ratio_w)反推计算得到
 
-        
-        self.k_horizontal_vehicle_camera_error_right = 0.6 # 识别车辆时，摄像头横向右移误差修正系数
-        self.k_horizontal_vehicle_camera_error_left = 1.0  # 识别车辆时，摄像头横向左移误差修正系数
-        self.k_horizontal_face_camera_error_right = 0.6  # 识别人脸时，摄像头横向右移误差修正系数
-        self.k_horizontal_face_camera_error_left = 1.2  # 识别人脸时，摄像头横向左移误差修正系数
+        # 图片距离映射到实际距离的系数，不再修改!!!!!!!
+        self.k_x_direction = 1.56  # 140mm对应着90个像素，所以1个像素对应1.56mm
+        self.k_y_direction = 0.5 # 由distance = self.k_y_direction * (1 - ratio_w)反推计算得到
+
+        #########################################################
+        # 移动距离修正系数，请根据测试结果优化调整
+        self.x_distance_factors = {
+            "vehicle": {
+                "approach": {"left": 1.0, "right": 1.0},  # 靠近并击打车辆
+                "leave": {"left": 1.0, "right": 1.0}    # 离开车辆
+            },
+            "face": {
+                "approach": {"left": 1.0, "right": 1.0},  # 靠近并击打人脸
+                "leave": {"left": 1.0, "right": 1.0}    # 离开人脸
+            }
+        }
+        self.y_distance_factors = {
+            "vehicle": {
+                "approach": {"forward": 1.0, "backward": 1.0},  # 靠近并击打车辆
+                "leave": {"forward": 1.0, "backward": 1.0}    # 离开车辆
+            },
+            "face": {
+                "approach": {"forward": 1.0, "backward": 1.0},  # 靠近并击打人脸
+                "leave": {"forward": 1.0, "backward": 1.0}    # 离开人脸
+            }
+        }
+        #########################################################
 
         # 目标瞄准参数
-        self.target_x_offset_tolerance = 35  # 目标中心与屏幕中心偏移量，单位像素 TBD
-        self.target_width_tolerance = 0.05  # 目标宽度容差
+        self.offset_x_tolerance = 20  # 目标中心与屏幕中心偏移量，单位像素
+        self.offset_w_tolerance = 0.05  # 目标宽度容差
     
     def move_forward(self, distance):
         """
@@ -167,71 +185,91 @@ class RobotBody:
         self.api.stop()
         print(f"移动完成，已行进{distance}米")
         
-    def adjust_position(self, offset_x, ratio_w, target_type):
+    def adjust_x_position(self, offset_x, target_type, move_type):
         """
-        瞄准目标，返回是否瞄准成功
+        根据横向偏移调整机器人位置
+        
+        :param offset_x: 目标横向偏移（像素），正值表示目标在右侧，负值表示目标在左侧
+        :param target_type: 目标类型，"vehicle"或"face"
+        :param move_type: 移动类型，"approach"或"leave"
+        :return: 无
+        """
+        print("开始调整横向位置")
+        print("*"*50)
+        print(f"调整横向位置: offset_x={offset_x}")
+        if abs(offset_x) < self.offset_x_tolerance:
+            print(f"横向位置仅偏移: {offset_x}, 没必要再调整")
+
+        # 当目标在左侧(offset_x < 0)，需要向左移动，让目标居中
+        if offset_x < 0:
+            direction = "left"
+        else:
+            direction = "right"
+
+        # 计算横向移动距离（米），与横向偏移像素成正比
+        # 根据公式：distance_x = kx · (x - x0) = kx · offset_x
+        basic_distance = self.k_x_direction * abs(offset_x) / 1000  # 转换为米
+        basic_distance = min(max(abs(basic_distance), 0.02), 0.25)  # 限制最小和最大距离
+        print(f"horizontal distance={basic_distance}")
+        distance_factor = self.x_distance_factors[target_type][move_type][direction]
+        distance = basic_distance * distance_factor
+        self.move_distance(direction, distance)
+        print(f"向{direction}调整，偏移量: {offset_x}，距离: {distance:.3f}米")
+        
+        print("*"*50)
+        
+    def adjust_y_position(self, ratio_w, target_type, move_type):
+        """
+        根据宽度比例调整机器人位置
+        
+        :param ratio_w: 目标宽度比例（当前宽度 / 期望宽度）
+        :param target_type: 目标类型，"vehicle"或"face"
+        :param move_type: 移动类型，"approach"或"leave"
+        :return: 无
+        """
+        print("开始调整纵向位置")
+        print("*"*50)
+        print(f"调整纵向位置: ratio_w={ratio_w}")
+        if abs(1 - ratio_w) < self.offset_w_tolerance:
+            print(f"纵向位置仅偏移: {ratio_w}, 没必要再调整")
+            return
+            
+        # 当比例大于1时，说明目标太近，需要后退
+        if ratio_w > 1:
+            direction = "backward"
+        else:
+            direction = "forward"
+
+        # 计算纵向移动距离（米），与纵向宽度比例成反比
+        # 纵向位置调整 - 根据公式：distance_y = ky · (1 - w/w0) = (1 - ratio_w)
+        basic_distance = self.k_y_direction * abs(1 - ratio_w)
+        print(f"vertical distance={basic_distance}")
+        basic_distance = min(max(abs(basic_distance), 0.02), 0.25)  # 限制最小和最大距离
+        distance_factor = self.y_distance_factors[target_type][move_type][direction]
+        distance = basic_distance * distance_factor
+        self.move_distance(direction, distance)
+        print(f"偏移比例: {ratio_w}，所以向{direction}调整，距离: {distance:.3f}米")
+            
+        print("*"*50)
+
+    def adjust_position(self, offset_x, ratio_w, target_type, move_type):
+        """
+        瞄准目标
         
         :param offset_x: 目标横向偏移（像素），正值表示目标在右侧，负值表示目标在左侧
         :param ratio_w: 目标宽度比例（当前宽度 / 期望宽度）
-        :return: 是否调整成功
+        :param target_type: 目标类型，"vehicle"或"face"
+        :param move_type: 移动类型，"approach"或"leave"
+        :return: 无
         """
-        k_horizontal = self.k_vehicle_horizontal if target_type == "vehicle" else self.k_face_horizontal
-        k_vertical = self.k_vehicle_vertical if target_type == "vehicle" else self.k_face_vertical
-
-        print("开始调整位置")
-        print("*"*50)
-        print(f"调整位置: offset_x={offset_x}, ratio_w={ratio_w}")
-        adjusted = False
-        
-        # 横向位置调整 - 根据公式：distance_x = kx · (x - x0) = kx · offset_x
-        if abs(offset_x) >= self.target_x_offset_tolerance:
-            # 计算横向移动距离（米），与横向偏移像素成正比
-            distance = k_horizontal * offset_x / 1000  # 转换为米
-            distance = min(max(abs(distance), 0.02), 0.25)  # 限制最小和最大距离
-            print(f"horizontal distance={distance}")
-            
-            # 当目标在右侧(offset_x > 0)，需要向左移动(distance < 0)
-            if offset_x > 0:
-                # 目标在右侧，需要向右移动
-                if target_type == "vehicle":
-                    distance = distance * self.k_horizontal_vehicle_camera_error_right
-                else: 
-                    distance = distance * self.k_horizontal_face_camera_error_right
-                self.move_distance("right", distance)
-                print(f"向右调整，偏移量: {offset_x}，距离: {distance:.3f}米")
-            else:
-                # 目标在左侧，需要向左移动
-                if target_type == "vehicle":
-                    distance = distance * self.k_horizontal_vehicle_camera_error_left
-                else:
-                    distance = distance * self.k_horizontal_face_camera_error_left
-                self.move_distance("left", abs(distance))
-                print(f"向左调整，偏移量: {offset_x}，距离: {abs(distance):.3f}米")
-            adjusted = True
+        if move_type == "approach":
+            # 如果靠近目标，先调整x方向位置，再调整y方向位置
+            self.adjust_x_position(offset_x, target_type, move_type)
+            self.adjust_y_position(ratio_w, target_type, move_type)
         else:
-            print(f"横向位置已对准 (偏移: {offset_x})")
-            
-        # 纵向位置调整 - 根据公式：distance_y = ky · (1 - w/w0) = (1 - ratio_w)
-        if abs(ratio_w - 1) > self.target_width_tolerance:
-            # 计算纵向移动距离（米），与纵向宽度比例成反比
-            distance = k_vertical * (1 - ratio_w)
-            print(f"vertical distance={distance}")
-            distance = min(max(abs(distance), 0.02), 0.2)  # 限制最小和最大距离
-            
-            # 当 ratio_w < 1 (目标较小)，distance > 0，需要前进
-            if ratio_w < 1:
-                self.move_distance("forward", abs(distance))
-                print(f"目标太远，前进调整 (宽度比例: {ratio_w}，距离: {abs(distance):.3f}米)")
-            else:
-                # 当 ratio_w > 1 (目标较大)，distance < 0，需要后退
-                self.move_distance("backward", abs(distance))
-                print(f"目标太近，后退调整 (宽度比例: {ratio_w}，距离: {abs(distance):.3f}米)")
-            adjusted = True
-        else:
-            print(f"纵向位置已对准 (宽度比例: {ratio_w})")
-        print("*"*50)
-            
-        return adjusted
+            # 如果离开目标，先调整y方向位置，再调整x方向位置
+            self.adjust_y_position(ratio_w, target_type, move_type)
+            self.adjust_x_position(offset_x, target_type, move_type)
 
 
 # 测试代码

@@ -72,13 +72,13 @@ class Controller:
         self.robot_body.navigate_to_position_vehicle()
         offset_x, ratio_w = self.__recognize_vehicle_target()
         self.__adjust_and_act_vehicle(offset_x, ratio_w)
-        self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="vehicle")
+        self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="vehicle", move_type="leave")
         
         # 5. 人脸识别流程
         self.robot_body.navigate_to_position_face()
         offset_x, ratio_w = self.__recognize_face_target()
         self.__adjust_and_act_face(offset_x, ratio_w)
-        self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="face")
+        self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="face", move_type="leave")
         
         # 6. 回家
         self.robot_body.navigate_to_position_home()
@@ -190,8 +190,7 @@ class Controller:
     def __adjust_and_act_vehicle(self, offset_x, ratio_w):
         """调整位置并击打vehicle目标"""
         # 调整位置
-        if offset_x != 0 or ratio_w != 0:
-            self.robot_body.adjust_position(offset_x, ratio_w, target_type="vehicle")
+        self.robot_body.adjust_position(offset_x, ratio_w, target_type="vehicle", move_type="approach")
         
         # 执行击打动作
         print(f"开始击打 vehicle 目标：{TARGET_VEHICLE}")
@@ -233,9 +232,7 @@ class Controller:
     def __adjust_and_act_face(self, offset_x, ratio_w):
         """调整位置并击打人脸目标"""
         # 调整位置
-        if offset_x != 0 or ratio_w != 0:
-            print(f"调整位置: offset_x={offset_x}, ratio_w={ratio_w}")
-            self.robot_body.adjust_position(offset_x, ratio_w, target_type="face")
+        self.robot_body.adjust_position(offset_x, ratio_w, target_type="face", move_type="approach")
         
         # 执行击打动作
         print(f"开始击打人脸目标：{TARGET_FACE}")
