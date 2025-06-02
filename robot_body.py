@@ -28,24 +28,27 @@ class RobotBody:
 
         #########################################################
         # 移动距离修正系数，请根据测试结果优化调整
-        self.x_distance_factors = {
+        # 系数表示倍数，而不是差值；一半的系数可能不会被用到，不用管即可
+        self.distance_factors = {
             "vehicle": {
-                "approach": {"left": 1.0, "right": 1.0},  # 靠近并击打车辆
-                "leave": {"left": 1.0, "right": 1.0}    # 离开车辆
+                "approach": {  # 靠近并击打车辆
+                    "left": 1.0, "right": 1.0,  # x方向调整因子
+                    "forward": 1.0, "backward": 1.0  # y方向调整因子
+                },
+                "leave": {     # 离开车辆
+                    "left": 1.0, "right": 1.0,
+                    "forward": 1.0, "backward": 1.0
+                }
             },
             "face": {
-                "approach": {"left": 1.0, "right": 1.0},  # 靠近并击打人脸
-                "leave": {"left": 1.0, "right": 1.0}    # 离开人脸
-            }
-        }
-        self.y_distance_factors = {
-            "vehicle": {
-                "approach": {"forward": 1.0, "backward": 1.0},  # 靠近并击打车辆
-                "leave": {"forward": 1.0, "backward": 1.0}    # 离开车辆
-            },
-            "face": {
-                "approach": {"forward": 1.0, "backward": 1.0},  # 靠近并击打人脸
-                "leave": {"forward": 1.0, "backward": 1.0}    # 离开人脸
+                "approach": {  # 靠近并击打人脸
+                    "left": 1.0, "right": 1.0,
+                    "forward": 1.0, "backward": 1.0
+                },
+                "leave": {     # 离开人脸
+                    "left": 1.0, "right": 1.0,
+                    "forward": 1.0, "backward": 1.0
+                }
             }
         }
         #########################################################
@@ -217,7 +220,7 @@ class RobotBody:
         basic_distance = self.k_x_direction * abs(offset_x) / 1000  # 转换为米
         basic_distance = min(max(abs(basic_distance), 0.02), 0.25)  # 限制最小和最大距离
         print(f"horizontal distance={basic_distance}")
-        distance_factor = self.x_distance_factors[target_type][move_type][direction]
+        distance_factor = self.distance_factors[target_type][move_type][direction]
         distance = basic_distance * distance_factor
         self.move_distance(direction, distance)
         print(f"向{direction}调整，偏移量: {offset_x}，距离: {distance:.3f}米")
@@ -251,7 +254,7 @@ class RobotBody:
         basic_distance = self.k_y_direction * abs(1 - ratio_w)
         print(f"vertical distance={basic_distance}")
         basic_distance = min(max(abs(basic_distance), 0.02), 0.25)  # 限制最小和最大距离
-        distance_factor = self.y_distance_factors[target_type][move_type][direction]
+        distance_factor = self.distance_factors[target_type][move_type][direction]
         distance = basic_distance * distance_factor
         self.move_distance(direction, distance)
         print(f"偏移比例: {ratio_w}，所以向{direction}调整，距离: {distance:.3f}米")
