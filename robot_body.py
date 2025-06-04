@@ -32,22 +32,22 @@ class RobotBody:
         self.distance_factors = {
             "vehicle": {
                 "approach": {  # 靠近并击打车辆
-                    "left": 1.0, "right": 1.0,  # x方向调整因子
-                    "forward": 1.0, "backward": 1.0  # y方向调整因子
+                    "left": 1.0, "right": 0.6,  # x方向调整因子
+                    "forward": 1.25, "backward": 1.0  # y方向调整因子
                 },
                 "leave": {     # 离开车辆
-                    "left": 1.0, "right": 1.0,
-                    "forward": 1.0, "backward": 1.0
+                    "left": 0.6, "right": 0.89,
+                    "forward": 1.0, "backward": 1.18
                 }
             },
             "face": {
                 "approach": {  # 靠近并击打人脸
-                    "left": 1.0, "right": 1.0,
-                    "forward": 1.0, "backward": 1.0
+                    "left": 1.0, "right": 0.7,
+                    "forward": 0.7, "backward": 1.0
                 },
                 "leave": {     # 离开人脸
-                    "left": 1.0, "right": 1.0,
-                    "forward": 1.0, "backward": 1.0
+                    "left": 0.7, "right": 1.0,
+                    "forward": 1.0, "backward": 0.6
                 }
             }
         }
@@ -111,7 +111,7 @@ class RobotBody:
         """导航到April Tag识别位置"""
         print("导航到April Tag识别位置")
         # 往左前方直接移动到april tag
-        distance = 0.6
+        distance = 0.57
         self.move_forward(distance)
         self.rotate_90_degrees("left")
         self.move_forward(distance)
@@ -131,8 +131,9 @@ class RobotBody:
         print("导航到vehicle识别位置")
         # 往后转，再向右前方移动到车辆位置
         self.rotate_left_180_degrees()
-        distance = 0.5
+        distance = 0.52
         self.move_forward(distance)
+        distance = 0.58
         self.move_distance("right", distance)
         # distance = 0.75  # 移动0.84米，还是0.6*sqrt(2)
         # self.move_right_forward(distance)
@@ -143,7 +144,7 @@ class RobotBody:
         print("导航到人脸识别位置")
         # 往右转，再向前方移动到人脸位置
         self.rotate_90_degrees("right")
-        distance = 0.6
+        distance = 0.58
         self.move_forward(distance)
         print("到达人脸识别十字")
 
@@ -151,9 +152,13 @@ class RobotBody:
         """导航到回家位置"""
         print("导航到回家位置")
         # 往后一直倒退，回到初始位置
-        distance = 1.9  # 移动1.8米，即0.6*3
-        self.move_backward(distance)
-        print("准备回家")
+        # distance = 1.9  # 移动1.8米，即0.6*3
+        # self.move_backward(distance)
+        # print("准备回家")
+        
+        self.rotate_left_180_degrees()
+        distance = 1.73  # 移动1.8米，即0.6*3
+        self.move_forward(distance)
 
     def follow_line_to_home(self):
         """使用灰度传感器和十字检测导航回家"""
@@ -275,10 +280,14 @@ class RobotBody:
             # 如果靠近目标，先调整x方向位置，再调整y方向位置
             self.adjust_x_position(offset_x, target_type, move_type)
             self.adjust_y_position(ratio_w, target_type, move_type)
+            self.api.stop()
+            time.sleep(0.1)
         else:
             # 如果离开目标，先调整y方向位置，再调整x方向位置
             self.adjust_y_position(ratio_w, target_type, move_type)
             self.adjust_x_position(offset_x, target_type, move_type)
+            self.api.stop()
+            time.sleep(0.1)
 
 
 # 测试代码

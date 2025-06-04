@@ -59,6 +59,8 @@ class Controller:
     def run(self):
         # 1. 初始化
         self.__initialize()
+        # 等待用户按下回车键继续。这样的方式可以减少启动指令到开始执行的时间
+        input("初始化完成，按回车键继续...")
         
         # 2. April Tag识别流程
         self.robot_body.navigate_to_position_april_tag()
@@ -315,5 +317,18 @@ class Controller:
 
 
 if __name__ == '__main__':
+    # 询问用户是否需要IMU校准
+    print("如果是刚上电开机，那么需要进行IMU校准")
+    imu_calibration = input("是否需要IMU校准? (y/n): ").strip().lower()
+    
+    if imu_calibration == 'y':
+        print("执行IMU校准...")
+        import subprocess
+        # 阻塞执行IMU校准，完成之后再执行主体任务
+        subprocess.run(["python3", "script_imu_calibration.py"])
+        print("IMU校准完成")
+    else:
+        print("跳过IMU校准")
+    
     controller = Controller()
     controller.run()

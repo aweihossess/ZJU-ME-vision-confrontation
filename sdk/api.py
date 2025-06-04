@@ -233,7 +233,7 @@ class UpAPI:
         else:
             return self.__grayscale_record
 
-    def get_camera_frame(self):
+    def get_camera_frame(self, type=None):
         """
         从帧图像队列获取相机数据，并可选择进行自适应亮度调整
 
@@ -242,6 +242,9 @@ class UpAPI:
         ret, frame = self.__sensor.get_camera().read()
         if not ret or frame is None:
             raise RuntimeError("Failed to read camera frame")
+        
+        if type == None:
+            return frame
 
         # 先进行亮度调整，可以根据实际情况选择是否开启
         auto_adjust_brightness = True
@@ -368,7 +371,7 @@ class UpAPI:
 
         :return: 是否预加载完成
         """
-        frame = self.get_camera_frame()
+        frame = self.get_camera_frame(type="vehicle")
 
         yolo_detector = self.__processor.get_yolo_detector()
         if self.__fill_vehicle_count >= yolo_detector.get_worker_number():

@@ -15,9 +15,9 @@ def follow_line_to_home(robot, target_cross_count):
     locator = CrossLocator()
     
     # 巡线参数
-    speed_follow_line = 10  # 巡线前进移动速度
-    speed_locate_move = 4   # 定位移动速度
-    speed_locate_turn = 20  # 定位旋转速度
+    speed_follow_line = 100  # 巡线前进移动速度
+    speed_locate_move = 100   # 定位移动速度
+    speed_locate_turn = 400  # 定位旋转速度
     
     cross_count = 0
     count_out_line = 0
