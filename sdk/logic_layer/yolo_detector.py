@@ -8,7 +8,7 @@ from ..model import YoloModel
 
 
 class YoloDetector:
-    def __init__(self, yolo_model):
+    def __init__(self, yolo_model, show=False):
         if yolo_model == YoloModel.VEHICLE:
             model_path = sys.path[0] + "/sdk/data_layer/yolo/rknnModel/vehicle_quantized_mmse.rknn"
         elif yolo_model == YoloModel.WEAPON:
@@ -25,6 +25,7 @@ class YoloDetector:
             rknn_model=model_path, worker_number=self.worker_number, func=yolo_processor.process)
 
         self.window_name = "Yolo Detect Image"
+        self.show = show
 
     def __del__(self):
         self.clean_up()
@@ -41,8 +42,9 @@ class YoloDetector:
         (frame, detections), flag = self.pool.get()
         result = frame.copy()
 
-        cv2.imshow(self.window_name, result)
-        cv2.waitKey(1)
+        if self.show:
+            cv2.imshow(self.window_name, result)
+            cv2.waitKey(1)
 
         return detections
 

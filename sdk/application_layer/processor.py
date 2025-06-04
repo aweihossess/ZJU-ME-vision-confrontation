@@ -7,14 +7,14 @@ from ..logic_layer.gesture_detector import GestureDetector
 
 
 class Processor(NoticeBase):
-    def __init__(self, yolo_model):
+    def __init__(self, yolo_model, show_image=False):
         super().__init__()
         self.yolo_model_enum = yolo_model
 
         self.__line_follower = SingleLineFollower()  # 巡线
-        self.__apriltag_detector = ApriltagDetector()  # Apriltag 检测
+        self.__apriltag_detector = ApriltagDetector(show=show_image)  # Apriltag 检测
         self.__face_detector = FaceDetector()  # 人脸识别
-        self.__yolo_detector = YoloDetector(yolo_model)  # YOLO 识别
+        self.__yolo_detector = YoloDetector(yolo_model, show=show_image)  # YOLO 识别
         self.__gesture_detector = GestureDetector()  # 手势识别
 
     def clean_up(self):

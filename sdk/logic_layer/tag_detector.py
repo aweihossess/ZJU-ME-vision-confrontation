@@ -3,7 +3,7 @@ import cv2, apriltag, numpy as np
 
 
 class ApriltagDetector:
-    def __init__(self, show=True, aspect_ratio=0.8):
+    def __init__(self, show=False, aspect_ratio=0.8):
         # 检测器设置
         options = apriltag.DetectorOptions(families='tag36h11')
         self.tag_detector = apriltag.Detector(options)

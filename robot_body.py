@@ -4,6 +4,7 @@ from sdk.logic_layer.pid import PIDController
 from sdk.logic_layer.cross_planner import CrossLocator
 from sdk.logic_layer.navigation import follow_line_to_home
 import math
+import logging
 
 k_back_error_correction = 0.8
 
@@ -42,11 +43,11 @@ class RobotBody:
             },
             "face": {
                 "approach": {  # 靠近并击打人脸
-                    "left": 1.0, "right": 0.7,
+                    "left": 0.95, "right": 0.7,
                     "forward": 0.7, "backward": 1.0
                 },
                 "leave": {     # 离开人脸
-                    "left": 0.7, "right": 1.0,
+                    "left": 0.8, "right": 0.95,
                     "forward": 1.0, "backward": 0.6
                 }
             }
@@ -84,80 +85,86 @@ class RobotBody:
         time.sleep(run_time / 1000 + self.extra_sleep_delay)
         self.api.stop()
 
-    def rotate_90_degrees(self, direction="left"):
+    def rotate_90_degrees(self, direction="left", offset_angle=0):
         """
         使机器人转90度
         
         :param direction: 旋转方向，"left"为左转，"right"为右转
         """
+        offset_time = offset_angle / 180 * self.rotation_180_time
+        rotation_90_time = self.rotation_90_time + offset_time
         if direction == "left":
-            self.api.spin_left(turn_rate=self.default_turn_rate, run_time=self.rotation_90_time)
+            self.api.spin_left(turn_rate=self.default_turn_rate, run_time=rotation_90_time)
         elif direction == "right":
-            self.api.spin_right(turn_rate=self.default_turn_rate, run_time=self.rotation_90_time)
+            self.api.spin_right(turn_rate=self.default_turn_rate, run_time=rotation_90_time)
         else:
-            print("无效的旋转方向，请指定'left'或'right'")
+            logging.warning("无效的旋转方向，请指定'left'或'right'")
             return
-        time.sleep(self.rotation_90_time / 1000 + self.extra_sleep_delay)
+        time.sleep(rotation_90_time / 1000 + self.extra_sleep_delay)
         self.api.stop()
 
-    def rotate_left_180_degrees(self):
+    def rotate_left_180_degrees(self, offset_angle=0):
         """
         使机器人左转180度
         """
-        self.api.spin_left(turn_rate=self.default_turn_rate, run_time=self.rotation_180_time)
-        time.sleep(self.rotation_180_time / 1000 + self.extra_sleep_delay)
+        offset_time = offset_angle / 180 * self.rotation_180_time
+        rotation_180_time = self.rotation_180_time + offset_time
+        self.api.spin_left(turn_rate=self.default_turn_rate, run_time=rotation_180_time)
+        time.sleep(rotation_180_time / 1000 + self.extra_sleep_delay)
 
     def navigate_to_position_april_tag(self):
         """导航到April Tag识别位置"""
-        print("导航到April Tag识别位置")
+        logging.info("导航到April Tag识别位置")
         # 往左前方直接移动到april tag
         distance = 0.57
         self.move_forward(distance)
         self.rotate_90_degrees("left")
         self.move_forward(distance)
-        print("到达 April Tag 开始识别十字")
+        logging.info("到达 April Tag 开始识别十字")
 
     def navigate_to_position_gesture(self):
         """导航到手势识别位置"""
-        print("导航到手势识别位置")
+        logging.info("导航到手势识别位置")
         # 往后转，再移动到手掌位置
         self.rotate_left_180_degrees()
         distance = 1.12  # 移动1.2米，即0.6*2 旋转180°会产生误差，所以这里距离需要稍微小一点
         self.move_forward(distance)
-        print("到达手势识别位置 开始识别手势")
+        logging.info("到达手势识别位置 开始识别手势")
 
     def navigate_to_position_vehicle(self):
         """导航到vehicle识别位置"""
-        print("导航到vehicle识别位置")
+        logging.info("导航到vehicle识别位置")
         # 往后转，再向右前方移动到车辆位置
-        self.rotate_left_180_degrees()
+        self.rotate_left_180_degrees(-2)
         distance = 0.52
         self.move_forward(distance)
         distance = 0.58
         self.move_distance("right", distance)
         # distance = 0.75  # 移动0.84米，还是0.6*sqrt(2)
         # self.move_right_forward(distance)
-        print("到达 vehicle 识别")
+        logging.info("到达 vehicle 识别")
 
     def navigate_to_position_face(self):
         """导航到人脸识别位置"""
-        print("导航到人脸识别位置")
+        logging.info("导航到人脸识别位置")
         # 往右转，再向前方移动到人脸位置
         self.rotate_90_degrees("right")
         distance = 0.58
         self.move_forward(distance)
-        print("到达人脸识别十字")
+        logging.info("到达人脸识别十字")
 
     def navigate_to_position_home(self):
         """导航到回家位置"""
-        print("导航到回家位置")
+        logging.info("导航到回家位置")
         # 往后一直倒退，回到初始位置
         # distance = 1.9  # 移动1.8米，即0.6*3
         # self.move_backward(distance)
-        # print("准备回家")
+        # logging.info("准备回家")
         
+        # 旋转角度偏差，单位度
         self.rotate_left_180_degrees()
-        distance = 1.73  # 移动1.8米，即0.6*3
+        self.api.stop()
+        distance = 1.70  # 移动1.8米，即0.6*3
         self.move_forward(distance)
 
     def follow_line_to_home(self):
@@ -175,7 +182,7 @@ class RobotBody:
         speed = self.default_speed
         move_time = int((distance / self.speed_factor) * 1000)
         
-        print(f"向{direction}方向移动{distance}米")
+        logging.info(f"向{direction}方向移动{distance}米")
         
         # 根据方向选择移动方式
         if direction == "forward":
@@ -191,13 +198,13 @@ class RobotBody:
             # 如果direction是角度值（0-359），使用move_translation
             self.api.move_translation(angle=direction, speed=speed, run_time=move_time)
         else:
-            print("无效的移动方向，请指定'forward', 'backward', 'left', 'right'或0-359的角度值")
+            logging.warning("无效的移动方向，请指定'forward', 'backward', 'left', 'right'或0-359的角度值")
             return
         
         # 等待移动完成
         time.sleep(move_time / 1000 + self.extra_sleep_delay)
         self.api.stop()
-        print(f"移动完成，已行进{distance}米")
+        logging.info(f"移动完成，已行进{distance}米")
         
     def adjust_x_position(self, offset_x, target_type, move_type):
         """
@@ -208,11 +215,11 @@ class RobotBody:
         :param move_type: 移动类型，"approach"或"leave"
         :return: 无
         """
-        print("开始调整横向位置")
-        print("*"*50)
-        print(f"调整横向位置: offset_x={offset_x}")
+        logging.info("开始调整横向位置")
+        logging.info("*"*50)
+        logging.info(f"调整横向位置: offset_x={offset_x}")
         if abs(offset_x) < self.offset_x_tolerance:
-            print(f"横向位置仅偏移: {offset_x}, 没必要再调整")
+            logging.info(f"横向位置仅偏移: {offset_x}, 没必要再调整")
 
         # 当目标在左侧(offset_x < 0)，需要向左移动，让目标居中
         if offset_x < 0:
@@ -224,13 +231,13 @@ class RobotBody:
         # 根据公式：distance_x = kx · (x - x0) = kx · offset_x
         basic_distance = self.k_x_direction * abs(offset_x) / 1000  # 转换为米
         basic_distance = min(max(abs(basic_distance), 0.02), 0.25)  # 限制最小和最大距离
-        print(f"horizontal distance={basic_distance}")
+        logging.info(f"horizontal distance={basic_distance}")
         distance_factor = self.distance_factors[target_type][move_type][direction]
         distance = basic_distance * distance_factor
         self.move_distance(direction, distance)
-        print(f"向{direction}调整，偏移量: {offset_x}，距离: {distance:.3f}米")
+        logging.info(f"向{direction}调整，偏移量: {offset_x}，距离: {distance:.3f}米")
         
-        print("*"*50)
+        logging.info("*"*50)
         
     def adjust_y_position(self, ratio_w, target_type, move_type):
         """
@@ -241,11 +248,11 @@ class RobotBody:
         :param move_type: 移动类型，"approach"或"leave"
         :return: 无
         """
-        print("开始调整纵向位置")
-        print("*"*50)
-        print(f"调整纵向位置: ratio_w={ratio_w}")
+        logging.info("开始调整纵向位置")
+        logging.info("*"*50)
+        logging.info(f"调整纵向位置: ratio_w={ratio_w}")
         if abs(1 - ratio_w) < self.offset_w_tolerance:
-            print(f"纵向位置仅偏移: {ratio_w}, 没必要再调整")
+            logging.info(f"纵向位置仅偏移: {ratio_w}, 没必要再调整")
             return
             
         # 当比例大于1时，说明目标太近，需要后退
@@ -257,14 +264,14 @@ class RobotBody:
         # 计算纵向移动距离（米），与纵向宽度比例成反比
         # 纵向位置调整 - 根据公式：distance_y = ky · (1 - w/w0) = (1 - ratio_w)
         basic_distance = self.k_y_direction * abs(1 - ratio_w)
-        print(f"vertical distance={basic_distance}")
+        logging.info(f"vertical distance={basic_distance}")
         basic_distance = min(max(abs(basic_distance), 0.02), 0.25)  # 限制最小和最大距离
         distance_factor = self.distance_factors[target_type][move_type][direction]
         distance = basic_distance * distance_factor
         self.move_distance(direction, distance)
-        print(f"偏移比例: {ratio_w}，所以向{direction}调整，距离: {distance:.3f}米")
+        logging.info(f"偏移比例: {ratio_w}，所以向{direction}调整，距离: {distance:.3f}米")
             
-        print("*"*50)
+        logging.info("*"*50)
 
     def adjust_position(self, offset_x, ratio_w, target_type, move_type):
         """
@@ -296,25 +303,25 @@ if __name__ == "__main__":
         api = UpAPI()
         robot = RobotBody(api)
         
-        print("navigate_to_position_april_tag")
+        logging.info("navigate_to_position_april_tag")
         robot.navigate_to_position_april_tag()
-        print("navigate_to_position_gesture")
+        logging.info("navigate_to_position_gesture")
         robot.navigate_to_position_gesture()
-        print("navigate_to_position_vehicle")
+        logging.info("navigate_to_position_vehicle")
         robot.navigate_to_position_vehicle()
-        print("navigate_to_position_face")
+        logging.info("navigate_to_position_face")
         robot.navigate_to_position_face()
-        print("navigate_to_position_home")
+        logging.info("navigate_to_position_home")
         robot.navigate_to_position_home()
         
-        print("测试完成!")
+        logging.info("测试完成!")
         
     except KeyboardInterrupt:
-        print("\n程序被用户中断")
+        logging.warning("\n程序被用户中断")
     except Exception as e:
-        print(f"发生错误: {e}")
+        logging.error(f"发生错误: {e}")
     finally:
         # 确保机器人停止
         if 'robot' in locals():
             robot.api.stop()
-            print("机器人已停止") 
+            logging.info("机器人已停止") 

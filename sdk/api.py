@@ -5,6 +5,7 @@ from .data_layer.arm import arm_action_factory as data_arm
 from .model import YoloModel
 from .utils.image_util import adjust_brightness, auto_contrast
 import cv2
+import logging
 
 
 class UpAPI:
@@ -12,19 +13,19 @@ class UpAPI:
     __fill_vehicle_count = 0  # Yolo 检测池加载计数
     __grayscale_record = [False] * 7  # 灰度数据缓存
 
-    def __new__(cls, yolo_model=YoloModel.VEHICLE, grayscale_threshold=3060, debug=False):
+    def __new__(cls, yolo_model=YoloModel.VEHICLE, grayscale_threshold=3060, show_image=False):
         if cls._instance is None:
             cls._instance = super(UpAPI, cls).__new__(cls)
+
+            # 参数
+            cls._instance.__show_image = show_image
+            cls._instance.__grayscale_threshold = grayscale_threshold  # 灰度阈值
+            cls._instance.__window_name_face = "Face"
 
             # 子系统
             cls._instance.__action = Action()
             cls._instance.__sensor = Sensor()
-            cls._instance.__processor = Processor(yolo_model)
-
-            # 参数
-            cls._instance.__debug = debug
-            cls._instance.__grayscale_threshold = grayscale_threshold  # 灰度阈值
-            cls._instance.__window_name_face = "Face"
+            cls._instance.__processor = Processor(yolo_model, show_image)
 
         return cls._instance
 
@@ -223,8 +224,7 @@ class UpAPI:
         grayscale = self.__sensor.get_grayscale()
         analog_data = grayscale.get_grayscale_data()
 
-        if self.__debug:
-            print(f"灰度传感器模拟量数据: {analog_data}")
+        logging.info(f"灰度传感器模拟量数据: {analog_data}")
 
         if analog_data is not None:
             digital_data = self.__adc_grayscale_data(analog_data)
@@ -275,9 +275,9 @@ class UpAPI:
         frame = self.get_camera_frame()
         if frame is not None:
             cv2.imwrite(filename, frame)
-            print(f"Image saved as {filename}")
+            logging.info(f"Image saved as {filename}")
         else:
-            print("Fail to get image.")
+            logging.error("Fail to get image.")
 
     def follow_line(self):
         """
@@ -317,10 +317,11 @@ class UpAPI:
 
         face_detector = self.__processor.get_face_detector()
         detections = face_detector.detect_faces_in_image(frame, sim_threshold=sim_threshold)
-
-        image = face_detector.draw_bounding_boxes(frame, detections)
-        cv2.imshow(self.__window_name_face, image)
-        cv2.waitKey(1)
+        
+        if self.__show_image:
+            image = face_detector.draw_bounding_boxes(frame, detections)
+            cv2.imshow(self.__window_name_face, image)
+            cv2.waitKey(1)
 
         for detection in detections:
             name, score, center, offset_x, width = detection

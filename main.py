@@ -3,10 +3,16 @@
 from sdk.data_layer.arm import arm_action_factory as arm_action
 from sdk.api import UpAPI
 from sdk.model import YoloModel
-from sdk.logic_layer.cross_planner import CrossLocator
-from sdk.logic_layer.time_meter import TimeMeter
 from robot_body import RobotBody
 import time
+import logging
+
+# 设置日志配置
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s.%(msecs)03d]%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 TARGET_FACE = "t_0"  # 人脸识别标签
 TARGET_VEHICLE = "tank"  # 车辆识别标签
@@ -22,7 +28,7 @@ class Controller:
         self.grayscale_threshold = 1600  # 灰度传感器检测阈值
 
         self.time_init = 1000  # 初始化时间，单位毫秒
-        self.arm_action_duration = 2500  # 手臂做动作时间，单位毫秒 TBD
+        self.arm_action_duration = 0.4  # 手臂做动作时间，单位秒
         self.arm_action_delay = 0.1  # 手臂做动作时间，单位秒
         self.image_read_duration = 2500  # 等待读取图片和模型处理的时间，单位毫秒
         self.image_read_interval = 0.1  # 等待读取图片和模型处理的时间，单位秒
@@ -47,14 +53,17 @@ class Controller:
         }
 
         # 传感器和执行器
-        self.api = UpAPI(yolo_model=self.yolo_model, grayscale_threshold=self.grayscale_threshold)
+        # 是否显示图像，调试时可以打开，正式运行时关闭以减少耗时
+        self.show_image = False
+        self.api = UpAPI(yolo_model=self.yolo_model,
+                         grayscale_threshold=self.grayscale_threshold,
+                         show_image=self.show_image)
         
         # 机器人身体控制
         self.robot_body = RobotBody(self.api)
         
         # 相机稳定
-        self.count_stable = 0  # 相机稳定计数器
-        self.count_continuous_stable = 5  # 相机连续稳定阈值
+        self.count_continuous_stable = 4  # 相机连续稳定阈值
 
     def run(self):
         # 1. 初始化
@@ -83,7 +92,7 @@ class Controller:
         self.robot_body.adjust_position(-offset_x, 2-ratio_w, target_type="face", move_type="leave")
         
         # 6. 回家
-        print("开始回家...")
+        logging.info("开始回家...")
         # 使用开环控制回家(默认方式)
         self.robot_body.navigate_to_position_home()
         # 使用灰度传感器和十字检测回家(推荐方式)
@@ -94,16 +103,16 @@ class Controller:
 
     def __initialize(self):
         """初始化机器人"""
-        print("初始化中...")
+        logging.info("初始化中...")
         self.__clamp_arms()
         
         # 等待初始化完成
         time.sleep(self.time_init / 1000)
-        print("初始化完成")
+        logging.info("初始化完成")
 
     def __recognize_and_act_apriltag(self):
         """识别April Tag并做出相应动作"""
-        print("演习区域，准备识别 April Tag")
+        logging.info("演习区域，准备识别 April Tag")
         
         # 等待相机稳定
         self.__wait_camera_stable()
@@ -112,19 +121,20 @@ class Controller:
         while time.time() - start_time < self.image_read_duration / 1000:
             find_tag, tag_id, offset_x = self.api.detect_apriltag()
             if find_tag:
-                print(f"找到 April Tag 动作：{tag_id}")
+                logging.info(f"找到 April Tag 动作：{tag_id}")
                 self.__do_arm_action(tag_id)
-                time.sleep(1)
+                time.sleep(self.arm_action_duration)
                 break
             time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
         
-        print("April Tag 动作完成")
+        logging.info("April Tag 动作完成")
         self.__clamp_arms()
-        self.api.close_tag_window()
+        if self.show_image:
+            self.api.close_tag_window()
 
     def __recognize_and_act_gesture(self):
         """识别手势并做出相应动作"""
-        print("演习区域，准备识别手势图像")
+        logging.info("演习区域，准备识别手势图像")
         
         # 等待相机稳定
         self.__wait_camera_stable()
@@ -138,26 +148,27 @@ class Controller:
         while time.time() - start_time < self.image_read_duration * action_duration_adjust / 1000:
             find_target, number = self.api.detect_gesture()
             if find_target:
-                print(f"找到手势动作：{number}")
+                logging.info(f"找到手势动作：{number}")
                 self.__do_arm_action(number)
-                time.sleep(1)
+                time.sleep(self.arm_action_duration)
                 detect_gesture_true = True
                 break
-            print("未识别到手势动作，继续寻找")
+            logging.info("未识别到手势动作，继续寻找")
             time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
         
         if not detect_gesture_true:
-            print("未识别到手势动作_大概率为拳头")
+            logging.info("未识别到手势动作_大概率为拳头")
             self.__do_arm_action(TARGET_NUMBER_RIGHT)
-            time.sleep(1)
+            time.sleep(self.arm_action_duration)
         
-        print("手势动作完成")
+        logging.info("手势动作完成")
         self.__clamp_arms()
-        self.api.close_gesture_window()
+        if self.show_image:
+            self.api.close_gesture_window()
 
     def __recognize_vehicle_target(self):
         """识别车辆目标并返回偏移量"""
-        print("vehicle 识别区域，预加载图像中")
+        logging.info("vehicle 识别区域，预加载图像中")
         
         # 等待相机稳定
         self.__wait_camera_stable()
@@ -169,28 +180,29 @@ class Controller:
             # 预加载YOLO图像
             preload_complete = self.api.preload_yolo_pool()
             if not preload_complete:
-                print("预加载车辆读取图像失败")
+                logging.info("预加载车辆读取图像失败")
                 time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
                 continue
             
             #将预加载的图像保存起来
-            self.api.save_images("yolo_detected_vehicle_image.jpg")
-            print("预加载车辆图像完成，准备识别目标")
+            if self.show_image:
+                self.api.save_images("yolo_detected_vehicle_image.jpg")
+            logging.info("预加载车辆图像完成，准备识别目标")
 
             # 开始识别目标
             find_target, offset_x, width = self.api.detect_yolo(label=TARGET_VEHICLE)
             if not find_target:
-                print("未找到目标，继续寻找目标")
+                logging.info("未找到目标，继续寻找目标")
                 time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
                 continue
 
-            print(f"找到 vehicle 目标：{TARGET_VEHICLE}")
+            logging.info(f"找到 vehicle 目标：{TARGET_VEHICLE}")
             # 计算宽度偏移
-            print(f"width={width}")
+            logging.info(f"width={width}")
             ratio_w = width / self.target_width_vehicle
             return offset_x, ratio_w
         
-        print("未在时间内识别到目标")
+        logging.info("未在时间内识别到目标")
         return 0, 0  # 如果没有识别到目标，返回零偏移
 
     def __adjust_and_act_vehicle(self, offset_x, ratio_w):
@@ -199,7 +211,7 @@ class Controller:
         self.robot_body.adjust_position(offset_x, ratio_w, target_type="vehicle", move_type="approach")
         
         # 执行击打动作
-        print(f"开始击打 vehicle 目标：{TARGET_VEHICLE}")
+        logging.info(f"开始击打 vehicle 目标：{TARGET_VEHICLE}")
         self.__hit_actions()
         
         # 清理vehicle资源
@@ -207,7 +219,7 @@ class Controller:
 
     def __recognize_face_target(self):
         """识别人脸目标并返回偏移量"""
-        print("人脸识别区域，准备识别目标")
+        logging.info("人脸识别区域，准备识别目标")
         
         # 等待相机稳定
         self.__wait_camera_stable()
@@ -217,22 +229,23 @@ class Controller:
         
         while time.time() - start_time < self.image_read_duration / 1000:
             # 先获取一次图像并保存
-            self.api.save_images("yolo_detected_face_image.jpg")
-            print("获取人脸图像完成，准备识别目标")
+            if self.show_image:
+                self.api.save_images("yolo_detected_face_image.jpg")
+            logging.info("获取人脸图像完成，准备识别目标")
 
             find_target, offset_x, width = self.api.detect_face(label=TARGET_FACE)
-            print(f"find_target={find_target}, offset_x={offset_x}, width={width}")
+            logging.info(f"find_target={find_target}, offset_x={offset_x}, width={width}")
             if find_target:
-                print(f"offset_x={offset_x}, width={width}")
-                print(f"找到人脸目标：{TARGET_FACE}")
+                logging.info(f"offset_x={offset_x}, width={width}")
+                logging.info(f"找到人脸目标：{TARGET_FACE}")
                 # 计算宽度偏移
                 ratio_w = width / self.target_width_face
-                print(f"ratio_w={ratio_w}")
+                logging.info(f"ratio_w={ratio_w}")
                 return offset_x, ratio_w
             else:
                 time.sleep(self.image_read_interval)  # 小延时避免CPU占用过高
         
-        print("未在时间内识别到人脸目标")
+        logging.info("未在时间内识别到人脸目标")
         return 0, 0  # 如果没有识别到目标，返回零偏移
 
     def __adjust_and_act_face(self, offset_x, ratio_w):
@@ -241,31 +254,32 @@ class Controller:
         self.robot_body.adjust_position(offset_x, ratio_w, target_type="face", move_type="approach")
         
         # 执行击打动作
-        print(f"开始击打人脸目标：{TARGET_FACE}")
+        logging.info(f"开始击打人脸目标：{TARGET_FACE}")
         self.__hit_actions()
         
         # 关闭人脸窗口
-        self.api.close_face_window()
+        if self.show_image:
+            self.api.close_face_window()
 
     def __wait_camera_stable(self):
         """等待相机稳定"""
         self.__clamp_arms()
         self.api.stop()
-        self.count_stable = 0
-        while self.count_stable < self.count_continuous_stable:
-            print("等待相机稳定")
-            self.count_stable += 1
+        count_stable = 0
+        while count_stable < self.count_continuous_stable:
+            logging.info("等待相机稳定")
+            count_stable += 1
             time.sleep(0.1)  # 小延时
 
     def __hit_actions(self):
         """执行击打动作序列"""
         # 击打动作序列
         self.__pre_hit()
-        time.sleep(self.time_hit_position / 1000)
+        time.sleep(self.arm_action_duration)
         self.__hit()
-        time.sleep(self.time_hit_position / 1000)
+        time.sleep(self.arm_action_duration)
         self.__clamp_arms()
-        time.sleep(self.time_hit_position / 1000)
+        # time.sleep(self.arm_action_duration)
 
     def __do_arm_action(self, number):
         """根据识别结果执行手臂动作"""
@@ -312,23 +326,23 @@ class Controller:
 
     def __finish(self):
         """完成所有任务"""
-        print("任务完成")
+        logging.info("任务完成")
         self.api.stop()
 
 
 if __name__ == '__main__':
     # 询问用户是否需要IMU校准
-    print("如果是刚上电开机，那么需要进行IMU校准")
+    logging.info("如果是刚上电开机，那么需要进行IMU校准")
     imu_calibration = input("是否需要IMU校准? (y/n): ").strip().lower()
     
     if imu_calibration == 'y':
-        print("执行IMU校准...")
+        logging.info("执行IMU校准...")
         import subprocess
         # 阻塞执行IMU校准，完成之后再执行主体任务
         subprocess.run(["python3", "script_imu_calibration.py"])
-        print("IMU校准完成")
+        logging.info("IMU校准完成")
     else:
-        print("跳过IMU校准")
+        logging.info("跳过IMU校准")
     
     controller = Controller()
     controller.run()
